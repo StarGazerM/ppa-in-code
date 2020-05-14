@@ -90,7 +90,7 @@
 
 ;; all labels inside a statement
 (define (labels s)
-  (match st
+  (match s
     [`(,label = ,(? variable? x) ,(? aexpr? a)) (cons label (labels a))]
     [`(,label SKIP) (list label)]
     [`(,(? stmt? ss) ...) (foldl (λ (s res) (append res (labels s))) '() ss)]
@@ -126,17 +126,17 @@
 
 ;; find statement by label inside a top-level state ment
 (define (find-block-by-label s* l)
-  (match st
+  (match s*
     [`(,label = ,(? variable? x) ,(? aexpr? a))
-     (if (equal? label l) st #f)]
+     (if (equal? label l) s* #f)]
     [`(,label SKIP) #f]
-    [`(,(? stmt? ss) ...) (foldl (λ (s res) (or res (find-stmt-by-label s l))) '() ss)]
+    [`(,(? stmt? ss) ...) (foldl (λ (s res) (or res (find-block-by-label s l))) '() ss)]
     [`(if (,label ,(? bexpr? b)) ,(? stmt? s1) ,(? stmt? s2))
      (if (equal? label l)
-         `(,label ,(? bexpr? b))
-         (or (find-stmt-by-label s1 l)
-             (find-stmt-by-label s2 l)))]
+         `(,label ,b)
+         (or (find-block-by-label s1 l)
+             (find-block-by-label s2 l)))]
     [`(while (,label ,(? bexpr? b)) do ,(? stmt? s))
      (if (equal? label l)
-         `(,label ,(? bexpr? b))
-         (find-stmt-by-label s l))]))
+         `(,label ,b)
+         (find-block-by-label s l))]))
