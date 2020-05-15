@@ -48,9 +48,11 @@
 ;; get sub arithmetic inside a boolean expression
 (define (aexpr-b b)
   (match b
-    [`(,(? op-r?) ,(? aexpr? aes) ...) aes]
+    [`(,(? op-r?) ,(? aexpr? aes) ...)
+     (filter (λ (a) (not (symbol? a))) aes)]
     [else '()]))
 
+;; change name here
 ;; all sub arithmetic expression in a statement
 (define (aexpr* st)
   (match st
@@ -72,7 +74,7 @@
   (match ae
     [(? variable?) (equal? v ae)]
     [`(,(? op-a?) ,(? aexpr? aes-prime) ...)
-     (andmap (λ (a) (isFreeVar v a)) aes-prime)]
+     (ormap (λ (a) (isFreeVar v a)) aes-prime)]
     [else #f]))
 
 ;; statement
@@ -91,7 +93,7 @@
 ;; all labels inside a statement
 (define (labels s)
   (match s
-    [`(,label = ,(? variable? x) ,(? aexpr? a)) (cons label (labels a))]
+    [`(,label = ,(? variable? x) ,(? aexpr? a)) (list label)]
     [`(,label SKIP) (list label)]
     [`(,(? stmt? ss) ...) (foldl (λ (s res) (append res (labels s))) '() ss)]
     [`(if (,label ,(? bexpr? b)) ,(? stmt? s1) ,(? stmt? s2))
@@ -130,7 +132,7 @@
     [`(,label = ,(? variable? x) ,(? aexpr? a))
      (if (equal? label l) s* #f)]
     [`(,label SKIP) #f]
-    [`(,(? stmt? ss) ...) (foldl (λ (s res) (or res (find-block-by-label s l))) '() ss)]
+    [`(,(? stmt? ss) ...) (foldl (λ (s res) (or res (find-block-by-label s l))) #f ss)]
     [`(if (,label ,(? bexpr? b)) ,(? stmt? s1) ,(? stmt? s2))
      (if (equal? label l)
          `(,label ,b)
