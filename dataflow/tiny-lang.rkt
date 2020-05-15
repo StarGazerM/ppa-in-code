@@ -77,6 +77,56 @@
      (ormap (λ (a) (isFreeVar v a)) aes-prime)]
     [else #f]))
 
+(define (free-var? v s)
+  (match s
+    [(? variable?) (equal? v s)]
+    [`(,(? op-a?) ,(? aexpr? aes-prime) ...)
+     (ormap (λ (a) (free-var? v a)) aes-prime)]
+    [`(,(? op-b?) ,(? bexpr? bs) ...)
+     (ormap (λ (b) (free-var? v b)) bs)]
+    [`(,(? op-r?) ,(? aexpr? as) ...)
+     (ormap (λ (a) (free-var? v a)) as)]
+    ;; assignment
+    [`(,label = ,(? variable? x) ,(? aexpr? a))
+     (or (equal? x v)
+         (free-var? v a))]
+    ;; sequence, for here I just use list
+    [`(,(? stmt? ss) ...)
+     (ormap (λ (s) (free-var? v s)) ss)]
+    [`(if (,label ,(? bexpr? b)) ,(? stmt? s1) ,(? stmt? s2))
+     (or (free-var? v b)
+         (free-var? v s1)
+         (free-var? v s2))]
+    [`(while (,label ,(? bexpr? b)) do ,(? stmt? s))
+     (or (free-var? v b)
+         (free-var? v s))]
+    [else #f]))
+
+;; get all free var inside a statement
+(define (free-vars s)
+  (match s
+    [(? variable?) (list s)]
+    [`(,(? op-a?) ,(? aexpr? aes-prime) ...)
+     (foldl (λ (a res) (set-union res (free-vars a))) '() aes-prime)]
+    [`(,(? op-b?) ,(? bexpr? bs) ...)
+     (foldl (λ (b res) (set-union res (free-vars b))) '() bs)]
+    [`(,(? op-r?) ,(? aexpr? as) ...)
+     (foldl (λ (a res) (set-union res (free-vars a))) '() as)]
+    ;; assignment
+    [`(,label = ,(? variable? x) ,(? aexpr? a))
+     (set-add (free-vars a) x)]
+    ;; sequence, for here I just use list
+    [`(,(? stmt? ss) ...)
+     (foldl (λ (s res) (set-union res (free-vars s))) '() ss)]
+    [`(if (,label ,(? bexpr? b)) ,(? stmt? s1) ,(? stmt? s2))
+     (set-union (free-vars b)
+                (free-vars s1)
+                (free-vars s2))]
+    [`(while (,label ,(? bexpr? b)) do ,(? stmt? s))
+     (set-union (free-vars b)
+                (free-vars s))]
+    [else '()]))
+
 ;; statement
 ;; in this language all statement is pre-labaled
 (define (stmt? st)
@@ -107,7 +157,7 @@
 (define (block? b)
   (match b
     [`(,label = ,(? variable? x) ,(? aexpr? a)) #t]
-    [`(,label ,(? bexpr? b)) #t]
+    [`(,label ,(? bexpr? b)) #t] 
     [`(,label SKIP) #t]
     [else #f]))
 

@@ -11,6 +11,8 @@
 (require "tiny-lang.rkt"
          "flow.rkt")
 
+(provide AE-chaos)
+
 ;; pure racket version
 
 ;; different from book I put S* in argument, since we are in function programing
