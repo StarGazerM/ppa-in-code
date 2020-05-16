@@ -25,21 +25,23 @@
       [`(,label = ,(? variable? x1) ,(? aexpr? a))
        (equal? x x1)]
       [else #f]))
-  (match b
-    [`(,label = ,(? variable? x) ,(? aexpr? a))
-     (set-union (list `(,x '?))
-                (map (λ (bl)
-                       ;; first of a blockis always a label
-                       `(,x ,(first bl)))
-                     (filter (λ (bl) (assign-x? bl x)) block*)))]
-    [`(,label SKIP) '()]
-    [`(,label ,(? bexpr? b)) '()]))
+  (list->set
+   (match b
+     [`(,label = ,(? variable? x) ,(? aexpr? a))
+      (set-union (list `(,x '?))
+                 (map (λ (bl)
+                        ;; first of a blockis always a label
+                        `(,x ,(first bl)))
+                      (filter (λ (bl) (assign-x? bl x)) block*)))]
+     [`(,label SKIP) '()]
+     [`(,label ,(? bexpr? b)) '()])))
 
 (define (gen-RD b s*)
-  (match b
-    [`(,label = ,(? variable? x) ,(? aexpr? a))
-     (list `(,x ,label))]
-    [else '()]))
+  (list->set
+   (match b
+     [`(,label = ,(? variable? x) ,(? aexpr? a))
+      (list `(,x ,label))]
+     [else '()])))
 
 ;; similar to availible expression we can use chaotic iteration, but init to ∅
 (define (RD-chaos s*)
@@ -49,7 +51,7 @@
   (define init-map
     (for/fold ([res (hash)])
               ([l (in-list lab*)])
-      (hash-set res l '())))
+      (hash-set res l (set))))
   (define (rd-entry entrym exitm l)
     (define ls-prime
       (for/fold ([res '()])
@@ -61,7 +63,7 @@
                res)])))
     (if (empty? ls-prime)
         (hash-set entrym l
-                  (map (λ (v) `(,v '? )) all-fv))
+                  (list->set (map (λ (v) `(,v '? )) all-fv)))
         (hash-set entrym l
                   (apply set-union
                          (map (λ (l-prime) (hash-ref exitm l-prime))
@@ -95,4 +97,28 @@
       do
       ((4 = y (* x y))
        (5 = x (- x 1))))))
+
+;; reaching-definition.rkt> (RD-chaos example2-7)
+;; (hash
+;;  1
+;;  (set '(x '?) '(y '?))
+;;  2
+;;  (set '(x 1) '(y '?))
+;;  3
+;;  (set '(y 4) '(x 5) '(x 1) '(y 2))
+;;  4
+;;  (set '(y 4) '(x 5) '(x 1) '(y 2))
+;;  5
+;;  (set '(y 4) '(x 5) '(x 1)))
+;; (hash
+;;  1
+;;  (set '(x 1) '(y '?))
+;;  2
+;;  (set '(x 1) '(y 2))
+;;  3
+;;  (set '(y 4) '(x 5) '(x 1) '(y 2))
+;;  4
+;;  (set '(y 4) '(x 5) '(x 1))
+;;  5
+;;  (set '(y 4) '(x 5)))
 

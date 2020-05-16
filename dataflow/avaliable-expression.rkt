@@ -18,24 +18,24 @@
 ;; different from book I put S* in argument, since we are in function programing
 ;; language, seems we can get rid of this in relational programming style
 ;; kill : Blocks* → AExpr* → P(AExpr*)
-
-;;HERE>>>>>>>>>>>>>>>>>>>>>>>>>>>
 (define (kill-AE b s*)
   (define aes (aexpr* s*))
-  (match b
-    [`(,label = ,(? variable? x) ,(? aexpr? a))
-     (filter (λ (ae) (isFreeVar x ae)) aes)]
-    [`(,label ,(? bexpr? b)) '()]
-    [`(,label SKIP) '()]))
+  (list->set
+   (match b
+     [`(,label = ,(? variable? x) ,(? aexpr? a))
+      (filter (λ (ae) (isFreeVar x ae)) aes)]
+     [`(,label ,(? bexpr? b)) '()]
+     [`(,label SKIP) '()])))
 
 ;; gen : Blocks*  → P(AExpr*)
 (define (gen-AE b)
-  (match b
-    [`(,label = ,(? variable? x) ,(? aexpr? a))
-     (filter (λ (ae) (not (isFreeVar x ae))) (aexpr-a a))]
-    [`(,label ,(? bexpr? b))
-     (aexpr-b b)]
-    [`(,label SKIP) '()]))
+  (list->set
+   (match b
+     [`(,label = ,(? variable? x) ,(? aexpr? a))
+      (filter (λ (ae) (not (isFreeVar x ae))) (aexpr-a a))]
+     [`(,label ,(? bexpr? b))
+      (aexpr-b b)]
+     [`(,label SKIP) '()])))
 
 ;; I also put top-level statement
 ;; AE-entry : Lab* → S*  → P(AExp*)
@@ -54,11 +54,11 @@
          (if (equal? to l)
              (cons from res)
              res)])))
-  (displayln ls-prime)
-  (if (empty? ls-prime)
-      '()
-      (apply set-intersect
-             (map (λ (l-prime) (AE-exit s* l-prime)) ls-prime))))
+  (list->set
+   (if (empty? ls-prime)
+       '()
+       (apply set-intersect
+              (map (λ (l-prime) (AE-exit s* l-prime)) ls-prime)))))
 
 (define (AE-exit s* l)
   (define bl (find-block-by-label s* l))
@@ -74,7 +74,7 @@
   (define init-map
     (for/fold ([res (hash)])
               ([l (in-list lab*)])
-      (hash-set res l all-ae)))
+      (hash-set res l (list->set all-ae))))
   ;; ae-entry & ae-exit will return new entry/exit map
   (define (ae-entry entrym exitm l)
     (define ls-prime
@@ -86,7 +86,7 @@
                (cons from res)
                res)])))
     (if (empty? ls-prime)
-        (hash-set entrym l '())
+        (hash-set entrym l (set))
         (hash-set entrym l
                   (apply set-intersect
                          (map (λ (l-prime) (hash-ref exitm l-prime))
@@ -130,14 +130,16 @@
        (5 = x (+ a b))))))
 
 ;; avaliable-expression.rkt> (AE-chaos example2-5)
-;; '#hash((1 . ())
-;;        (2 . ((+ a b)))
-;;        (3 . ((+ a b)))
-;;        (4 . ((+ a b)))
-;;        (5 . ()))
-;; '#hash((1 . ((+ a b)))
-;;        (2 . ((* a b) (+ a b)))
-;;        (3 . ((+ a b)))
-;;        (4 . ())
-;;        (5 . ((+ a b))))
-;; avaliable-expression.rkt> 
+;; (hash 1 (set) 2 (set '(+ a b)) 3 (set '(+ a b)) 4 (set '(+ a b)) 5 (set))
+;; (hash
+;;  1
+;;  (set '(+ a b))
+;;  2
+;;  (set '(+ a b) '(* a b))
+;;  3
+;;  (set '(+ a b))
+;;  4
+;;  (set)
+;;  5
+;;  (set '(+ a b)))
+

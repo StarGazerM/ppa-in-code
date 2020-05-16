@@ -54,8 +54,8 @@
     [`(if (,label ,(? bexpr? b)) ,(? stmt? s1) ,(? stmt? s2))
      (set-union (flow s1)
                 (flow s2)
-                `((,label (init-flow s1))
-                  (,label (init-flow s2))))]
+                `((,label ,(init-flow s1))
+                  (,label ,(init-flow s2))))]
     [`(while (,label ,(? bexpr? b)) do ,(? stmt? s))
      (set-union (flow s)
                 `((,label ,(init-flow s)))
