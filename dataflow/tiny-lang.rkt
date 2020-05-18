@@ -56,6 +56,8 @@
 ;; all sub arithmetic expression in a statement
 (define (aexpr* st)
   (match st
+    [(? aexpr?) (aexpr-a st)]
+    [(? bexpr?) (aexpr-b st)]
     [`(,label = ,(? variable? x) ,(? aexpr? a)) (aexpr-a a)]
     [`(,label SKIP) '()]
     ;; sequence, for here I just use list

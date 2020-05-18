@@ -111,11 +111,6 @@
         [(and (equal? next-entrym entrym) (equal? next-exitm exitm))
          (values next-entrym next-exitm)]
         [else
-         ;; (displayln "entry")
-         ;; (pretty-display next-entrym)
-         ;; (displayln "exit")
-         ;; (pretty-display next-exitm)
-         ;; (displayln ">>>>>>>>>")
          (iter-to-fix next-entrym next-exitm)])))
   (iter-to-fix init-map init-map))
 
