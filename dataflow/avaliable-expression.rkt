@@ -11,7 +11,7 @@
 (require "tiny-lang.rkt"
          "flow.rkt")
 
-(provide AE-chaos)
+(provide (all-defined-out))
 
 ;; pure racket version
 

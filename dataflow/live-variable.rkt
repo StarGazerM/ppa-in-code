@@ -11,6 +11,8 @@
 (require "tiny-lang.rkt"
          "flow.rkt")
 
+(provide (all-defined-out))
+
 ;; left hand var will will kill a var
 ;; kill-LV : Blocks* → P(Var*)
 (define (kill-LV b)

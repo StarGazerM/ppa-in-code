@@ -16,6 +16,8 @@
 (require "tiny-lang.rkt"
          "flow.rkt")
 
+(provide (all-defined-out))
+
 ;; kill-RD : Blocks* → P(Var* × Lab*&?)
 
 (define (kill-RD b s*)

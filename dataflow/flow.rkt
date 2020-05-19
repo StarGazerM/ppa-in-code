@@ -5,8 +5,7 @@
 
 (require "tiny-lang.rkt")
 
-(provide flow
-         flowʳ)
+(provide (all-defined-out))
 ;; pure racket version
 
 ;; init function return the inital label of a statement

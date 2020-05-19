@@ -11,6 +11,7 @@
 (require "tiny-lang.rkt"
          "flow.rkt")
 
+(provide (all-defined-out))
 
 ;; same as Availible Expression
 ;; kill : Blocks* → AExpr* → P(AExpr*)
