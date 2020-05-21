@@ -97,7 +97,8 @@
     (set-union res (ud s* x l-p))))
 
 ;; in this example block 1 can be removed since it no used before reassign
-;; code motion can be performed on block 6
+;; code motion can be performed on block 6, because only used in assign
+;; earlier 
 (define example2-12
   '((1 = x 0)
     (2 = x 3)

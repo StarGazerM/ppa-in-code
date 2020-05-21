@@ -1,0 +1,9 @@
+// WHILE language specification in datalog
+
+// Yihao Sun <ysun67@syr.edu>
+// Syracuse 2020
+
+// variable
+.decl var(v: symbol)
+
+aexpr()
