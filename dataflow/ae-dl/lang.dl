@@ -1,9 +1,50 @@
 // WHILE language specification in datalog
+// general speaking everything in datalog should be "flatten" facts, even some baisc term symbol  
 
 // Yihao Sun <ysun67@syr.edu>
 // Syracuse 2020
 
-// variable
-.decl var(v: symbol)
 
-aexpr()
+.decl Var(id: number, name: symbol)
+
+// flase, true
+.decl Bool(id: number, val: symbol)
+
+.decl Num(id: number, val: number)
+
+// we don't check if OpA is a OpA in datalog! because they are facts 
+.decl OpA(id: number, op: symbol)
+
+.decl OpB(id: number, op: symbol).
+
+.decl OpR(id: number, op: symbol).
+
+// flattened AST, just have a id point to next level
+.decl AExpr(id: number, opId: number, leftId: number, rightId: number)
+.decl BExpr(id: number, opId: number, leftId: number, rightId: number)
+
+.decl Assign(label: number, varId: number, aexprId: number)
+.decl Skip(label: number)
+.decl Seq(prev: number, next: number)
+.decl If(label: number, eguardId: number, etrueId: number, efalseId: number)
+.decl While(label: number, eguardId: number, ebodyId: number)
+
+// top level Stmt*
+.decl TopStmt(label: number)
+
+.decl Block(label: number)
+Block(label) :- Assign(label, varId, aexprId).
+Block(label) :- BExpr(label, op, left, right).
+Block(label) :- Skip(label).
+
+
+// if x is free var inside a expression
+.decl Free(x: symbol, eid: number)
+Free(x, eid) :- Var(eid, x).
+Free(x, eid) :- AExpr(eid, op, left, right), (Free(x, left) ; Free(x, right)).
+Free(x, eid) :- BExpr(eid, op, left, right), (Free(x, left) ; Free(x, right)).
+Free(x, eid) :- Assign(eid, varId, aexprId), (Var(varId, x) ; Free(x, aexprId)).
+Free(x, eid) :- Seq(prev, next), (Free(x, prev) ; Free(x, next)).
+Free(x, eid) :- If(label, eguard, etrue, eflase),
+                (Free(x, eguard) ; Free(x, etrue) ; Free(x, efalse)).
+Free(x, eid) :- While(label, eguard, ebody), (Free(x, eguard) ; Free(x, ebody)).
