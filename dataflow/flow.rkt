@@ -14,7 +14,7 @@
 (define (init-flow stmt)
   (match stmt
     [`(,label = ,(? variable? x) ,(? aexpr? a)) label]
-    [`(,label SKIP) #t]
+    [`(,label SKIP) label]
     [`(,(? stmt? stmts) ...) (init-flow (car stmts))]
     [`(if (,label ,(? bexpr? b)) ,(? stmt? s1) ,(? stmt? s2))
      label]
@@ -40,7 +40,7 @@
 (define (flow stmt)
   (match stmt
     [`(,label = ,(? variable? x) ,(? aexpr? a)) '()]
-    [`(,label SKIP) label]
+    [`(,label SKIP) '()]
     ['() '()]
     [`(,(? stmt? s)) (flow s)]
     [`(,(? stmt? s) ...)

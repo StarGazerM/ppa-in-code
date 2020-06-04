@@ -1,0 +1,97 @@
+;; availiable expression in slog
+
+;; Fact for example 2-5
+(prog
+(seq (assign 1 (var "x") (aexpr "+" (var "a") (var "b")))
+(seq (assign 2 (var "y") (aexpr "*" (var "a") (var "b")))
+(while "3" (bexpr ">" (var "y") (aexpr "+" (var "a") (var "b")))
+       (seq (assign 4 (var "a") (aexpr "+" (var "a") (num "1")))
+       (assign 5 (var "x") (aexpr "+" (var "a") (var "b"))))))))
+
+;;
+;; FV
+;; x is a free var in expression
+;;
+(free-var x ?(var x))
+
+[(free-var x ?(aexpr op e1 e2))
+ <--
+ (or (free-var x e1)
+     (free-var x e2))]
+[(free-var x ?(bexpr op e1 e2))
+ <--
+ (or (free-var x e1)
+     (free-var x e2))]
+[(free-var x ?(assign id e1 e2))
+ <--
+ (or (free-var x e1)
+     (free-var x e2))]
+[(free-var x ?(while id eguard ebody))
+ <--
+ (or (free-var x eguard)
+     (free-var x ebody))]
+[(free-var x ?(if id eguard eture efalse))
+ <--
+ (or (free-var x eguard)
+     (or (free-var x etrue)
+         (free-var x efalse)))]
+[(free-var x ?(seq fst snd))
+ <--
+ (or (free-var x fst)
+     (free-var x snd))]
+
+;;
+;; Data Flow relation
+;;
+
+;; init-flow
+;;  the inital dataflow in ... is from ...
+(init-flow ?(assign l v ae) l)
+(init-flow ?(skip l) l)
+[(init-flow ?(seq s1 s2) iflow) <-- (init-flow s1 iflow)]
+(init-flow ?(if l be s1 s2) l)
+(init-flow ?(while l be body) l)
+
+;; final flow
+;; dataflow in ... end with ...
+(final-flow ?(assign l v ae) l)
+(final-flow ?(skip l) l)
+[(final-flow ?(seq s1 s2) fflow) <-- (final-flow s2 fflow)]
+[(final-flow ?(if l be s1 s2) fflow) <-- (final-flow s1 fflow)]
+[(final-flow ?(if l be s1 s2) fflow) <-- (final-flow s2 fflow)]
+[(final-flow ?(while l be body) fflow) <-- (final-flow body fflow)]
+
+;; flow edge
+;; dataflow graph have a edge flow from ... to ...
+[(flow-edge from to)
+ <--
+ (seq s1 s2)
+ (init-flow s1 from)
+ (final-flow s2 to)]
+[(flow-edge from to)
+ <--
+ (if from be s1 s2)
+ (init-flow s1 to)]
+[(flow-edge from to)
+ <--
+ (if from be s1 s2)
+ (init-flow s2 to)]
+[(flow-edge from to)
+ <--
+ (while from be body)
+ (init-flow body to)]
+[(flow-edge from to)
+ <--
+ (while to be body)
+ (final-flow body from)]
+
+;; reverse flow edge
+[(flow-edge-reverse from to) <-- (flow-edge to from)]
+
+;; flow path
+;; flow graph have a path from ... to ... 
+[(flow-path from to) <-- (edge from)]
+[(flow-path from to) <-- (edge from mid) (edge mid to)]
+
+;; reverse flow path
+[(flow-path-reverse from to) <-- (flow-path to from)]

@@ -1,0 +1,62 @@
+;;
+;; Data Flow relation
+;;
+
+;; example2-1
+(prog
+ (seq (assign 1 (var "z") (num "1"))
+      (while 2 (bexpr ">" (var "x") (num "0"))
+             (seq (assign 3 (var "z") (aexpr "*" (var "z") (var "y")))
+                  (assign 4 (var "x") (aexpr "-" (var "x") (num "1")))))))
+
+;; init-flow
+;;  the inital dataflow in ... is from ...
+(init-flow ?(assign l v ae) l)
+(init-flow ?(skip l) l)
+[(init-flow ?(seq s1 s2) iflow) <-- (init-flow s1 iflow)]
+(init-flow ?(if l be s1 s2) l)
+(init-flow ?(while l be body) l)
+
+;; final flow
+;; dataflow in ... end with ...
+(final-flow ?(assign l v ae) l)
+(final-flow ?(skip l) l)
+[(final-flow ?(seq s1 s2) fflow) <-- (final-flow s2 fflow)]
+[(final-flow ?(if l be s1 s2) fflow) <-- (final-flow s1 fflow)]
+[(final-flow ?(if l be s1 s2) fflow) <-- (final-flow s2 fflow)]
+[(final-flow ?(while l be body) fflow) <-- (final-flow body fflow)]
+
+;; flow edge
+;; dataflow graph have a edge flow from ... to ...
+[(flow-edge from to)
+ <--
+ (seq s1 s2)
+ (init-flow s1 from)
+ (final-flow s2 to)]
+[(flow-edge from to)
+ <--
+ (if from be s1 s2)
+ (init-flow s1 to)]
+[(flow-edge from to)
+ <--
+ (if from be s1 s2)
+ (init-flow s2 to)]
+[(flow-edge from to)
+ <--
+ (while from be body)
+ (init-flow body to)]
+[(flow-edge from to)
+ <--
+ (while to be body)
+ (final-flow body from)]
+
+;; reverse flow edge
+[(flow-edge-reverse from to) <-- (flow-edge to from)]
+
+;; flow path
+;; flow graph have a path from ... to ... 
+[(flow-path from to) <-- (edge from)]
+[(flow-path from to) <-- (edge from mid) (edge mid to)]
+
+;; reverse flow path
+[(flow-path-reverse from to) <-- (flow-path to from)]
