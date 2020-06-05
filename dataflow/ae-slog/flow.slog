@@ -4,10 +4,24 @@
 
 ;; example2-1
 (prog
- (seq (assign 1 (var "z") (num "1"))
-      (while 2 (bexpr ">" (var "x") (num "0"))
-             (seq (assign 3 (var "z") (aexpr "*" (var "z") (var "y")))
-                  (assign 4 (var "x") (aexpr "-" (var "x") (num "1")))))))
+  (seq (assign 1 (var "z") (num 1))
+       (while 2
+              (bexpr ">" (var "x") (num 1))
+              (seq (assign 3 (var "z")
+                             (aexpr "*" (var "z") (var "y")))
+                   (assign 4 (var "x")
+                             (aexpr "-" (var "x") (num 1)))))))
+
+;; some dumy code here
+;; seems like a slog bug
+(some-prog ?(prog e) e)
+(some-v ?(var x) x)
+(some-n ?(num n) n)
+(some-b-rel ?(bexpr op l r) op)
+(some-a-rel ?(aexpr op l r) op)
+
+
+;;;;;;;;;;;;;;;;;;;;;
 
 ;; init-flow
 ;;  the inital dataflow in ... is from ...
@@ -31,8 +45,8 @@
 [(flow-edge from to)
  <--
  (seq s1 s2)
- (init-flow s1 from)
- (final-flow s2 to)]
+ (final-flow s1 from)
+ (init-flow s2 to)]
 [(flow-edge from to)
  <--
  (if from be s1 s2)
@@ -55,7 +69,7 @@
 
 ;; flow path
 ;; flow graph have a path from ... to ... 
-[(flow-path from to) <-- (edge from)]
+[(flow-path from to) <-- (edge from to)]
 [(flow-path from to) <-- (edge from mid) (edge mid to)]
 
 ;; reverse flow path
