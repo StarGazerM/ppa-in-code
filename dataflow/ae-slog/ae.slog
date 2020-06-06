@@ -8,28 +8,58 @@
        (seq (assign 4 (var "a") (aexpr "+" (var "a") (num "1")))
        (assign 5 (var "x") (aexpr "+" (var "a") (var "b"))))))))
 
+;; program start with label ...
+(prog-start 1)
+
+;;
+;; sub-aexpr
+;; ... is a sub aexpr of expr ...
+;;
+;; (sub-aexpr (var x) ?(var x))
+(sub-aexpr (aexpr op e1 e2) ?(aexpr op e1 e2))
+(sub-aexpr e ?(aexpr op e e2))
+(sub-aexpr e ?(aexpr op e1 e))
+[(sub-aexpr e ?(aexpr op e1 e2))
+ <--
+ (or (sub-aexpr e e1) (sub-aexpr e e2))]
+(sub-aexpr e ?(bexpr op e e2))
+(sub-aexpr e ?(bexpr op e1 e))
+[(sub-aexpr e ?(bexpr op e1 e2))
+ <--
+ (or (sub-aexpr e e1) (sub-aexpr e e2))]
+(sub-aexpr e ?(assign id e e2))
+(sub-aexpr e ?(assign id e1 e))
+[(sub-aexpr e ?(assign id e1 e2))
+ <--
+ (or (sub-aexpr e e1) (sub-aexpr e e2))]
+[(sub-aexpr e ?(seq e1 e2))
+ <--
+ (or (sub-aexpr e e1) (sub-aexpr e e2))]
+[(sub-aexpr e ?(if id eguard e1 e2)) <-- (sub-aexpr e eguard)]
+[(sub-aexpr e ?(if id eguard e1 e2))
+ <--
+ (or (sub-aexpr e e1) (sub-aexpr e e2))]
+[(sub-aexpr e ?(while id eguard ebody))
+ <--
+ (or (sub-aexpr e eguard) (sub-aexpr e ebody))]
+
 ;;
 ;; FV
 ;; x is a free var in expression
 ;;
 (free-var x ?(var x))
-
 [(free-var x ?(aexpr op e1 e2))
  <--
- (or (free-var x e1)
-     (free-var x e2))]
+ (or (free-var x e1) (free-var x e2))]
 [(free-var x ?(bexpr op e1 e2))
  <--
- (or (free-var x e1)
-     (free-var x e2))]
+ (or (free-var x e1) (free-var x e2))]
 [(free-var x ?(assign id e1 e2))
  <--
- (or (free-var x e1)
-     (free-var x e2))]
+ (or (free-var x e1) (free-var x e2))]
 [(free-var x ?(while id eguard ebody))
  <--
- (or (free-var x eguard)
-     (free-var x ebody))]
+ (or (free-var x eguard) (free-var x ebody))]
 [(free-var x ?(if id eguard eture efalse))
  <--
  (or (free-var x eguard)
@@ -37,12 +67,47 @@
          (free-var x efalse)))]
 [(free-var x ?(seq fst snd))
  <--
- (or (free-var x fst)
-     (free-var x snd))]
+ (or (free-var x fst) (free-var x snd))]
+
+;;
+;; we don't have not yet so we still need a not free-var relation maybe, this can be elimited by `not`
+;;
+[(not-free-var x ?(var a)) <-- (var x) (=/= x a)]
+[(not-free-var x ?(aexpr op e1 e2))
+ <--
+ (not-free-var x e1) (not-free-var x e2)]
+[(not-free-var x ?(bexpr op e1 e2))
+ <--
+ (not-free-var x e1) (not-free-var x e2)]
+[(not-free-var x ?(assign id e1 e2))
+ <--
+ (not-free-var x e1) (not-free-var x e2)]
+[(not-free-var x ?(while id eguard ebody))
+ <--
+ (not-free-var x eguard) (not-free-var x ebody)]
+[(not-free-var x ?(if id eguard eture efalse))
+ <--
+ (not-free-var x eguard)
+ (not-free-var x etrue)
+ (not-free-var x efalse)]
+[(not-free-var x ?(seq fst snd))
+ <--
+ (not-free-var x fst) (not-free-var x snd)]
+
 
 ;;
 ;; Data Flow relation
 ;;
+
+;; some dumy code here
+;; seems like a slog bug
+(some-prog ?(prog e) e)
+(some-v ?(var x) x)
+(some-n ?(num n) n)
+(some-b-rel ?(bexpr op l r) op)
+(some-a-rel ?(aexpr op l r) op)
+
+;;;;;;;;;;;;;;;;;;;;;
 
 ;; init-flow
 ;;  the inital dataflow in ... is from ...
@@ -57,8 +122,10 @@
 (final-flow ?(assign l v ae) l)
 (final-flow ?(skip l) l)
 [(final-flow ?(seq s1 s2) fflow) <-- (final-flow s2 fflow)]
-[(final-flow ?(if l be s1 s2) fflow) <-- (final-flow s1 fflow)]
-[(final-flow ?(if l be s1 s2) fflow) <-- (final-flow s2 fflow)]
+[(final-flow ?(if l be s1 s2) fflow)
+ <--
+ (or (final-flow s1 fflow)
+     (final-flow s2 fflow))]
 [(final-flow ?(while l be body) fflow) <-- (final-flow body fflow)]
 
 ;; flow edge
@@ -66,8 +133,8 @@
 [(flow-edge from to)
  <--
  (seq s1 s2)
- (init-flow s1 from)
- (final-flow s2 to)]
+ (final-flow s1 from)
+ (init-flow s2 to)]
 [(flow-edge from to)
  <--
  (if from be s1 s2)
@@ -90,8 +157,65 @@
 
 ;; flow path
 ;; flow graph have a path from ... to ... 
-[(flow-path from to) <-- (edge from)]
+[(flow-path from to) <-- (edge from to)]
 [(flow-path from to) <-- (edge from mid) (edge mid to)]
 
 ;; reverse flow path
 [(flow-path-reverse from to) <-- (flow-path to from)]
+
+
+;;
+;; Kill relation
+;; in block with id ... aexpr ... is killed
+;;
+[(kill-ae id (aexpr op e1 e2))
+ <--
+ (assign id (var x) ae)
+ (free-var x (aexpr op e1 e2))]
+
+;; since here we will finally subtract killed expr from existing relation
+;; and we don't have not, so we need to specify what kind of ae is **not killed**
+;; I think this relation should read as:
+;; in block with id ..., in all aexpr domain, ... is not killed
+[(not-kill-ae id (aexpr op e1 e2))
+ <--
+ (assign id (var x) ae)
+ (not-free-var x (aexpr op e1 e2))]
+
+;;
+;; Gen relation
+;; in block with id ... aexpr ... is gened
+;;
+[(gen-ae id suba)
+ <--
+ (assign id (var x) ae)
+ (sub-aexpr suba ae)
+ (not-free-var x suba)]
+[(gen-ae id a)
+ <--
+ (or (if id (bexpr op e1 e2) et ef)
+     (while id (bexpr op e1 e2) ebody))
+ (sub-aexpr a (bexpr op e1 e2))]
+
+
+;;
+;; AE Entry relation
+;; before enter block with label ...,  ... is a availiable expression
+;;
+[(ae-entry id "empty") <-- (prog-start id)]
+[(ae-entry id ae)
+ <--
+ (flow-edge from id)
+ (ae-exit from ae)]
+
+;;
+;; AE Exit relation
+;; when exit block with label ..., ... is a availiable expression
+;;
+[(ae-exit id a)
+ <--
+ (ae-entry id a)
+ (not-killed-ae id a)]
+[(ae-exit id a)
+ <--
+ (gen-ae id a)]
