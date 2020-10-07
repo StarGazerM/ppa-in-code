@@ -1,4 +1,22 @@
 
-(foo (bar "foobar"))
+(set 1 "a")
+(set 2 "a")
+(set 2 "b")
+(set 3 "a")
+(set 3 "c")
+(set 4 "a")
+(set 4 "b")
+(set 4 "c")
 
-(foobar ?(foo a) a)
+;; first pop up all possible intersection
+;; intersection set of set with id ... and ... has data element ... 
+(intersect ?(set sid1 a) ?(set sid2 a) a)
+(intersect ?(intersect s11 s12 a) ?(intersect s21 s22 a) a)
+
+;; intersect is idemponence and also monotone, so for final result `F`, following should holds
+;; ∀ s. F ∩ s = F
+[(not-intersect-all f)
+ <--
+ (= f (intersect sf1 sf2 a1))
+ (intersect f s a2)
+ (=/= a1 a2)]

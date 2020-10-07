@@ -4,7 +4,7 @@
 (prog
 (seq (assign 1 (var "x") (aexpr "+" (var "a") (var "b")))
 (seq (assign 2 (var "y") (aexpr "*" (var "a") (var "b")))
-(while "3" (bexpr ">" (var "y") (aexpr "+" (var "a") (var "b")))
+(while 3 (bexpr ">" (var "y") (aexpr "+" (var "a") (var "b")))
        (seq (assign 4 (var "a") (aexpr "+" (var "a") (num "1")))
        (assign 5 (var "x") (aexpr "+" (var "a") (var "b"))))))))
 
@@ -17,35 +17,41 @@
 ;;
 ;; (sub-aexpr (var x) ?(var x))
 (sub-aexpr (aexpr op e1 e2) ?(aexpr op e1 e2))
-(sub-aexpr e ?(aexpr op e e2))
-(sub-aexpr e ?(aexpr op e1 e))
-[(sub-aexpr e ?(aexpr op e1 e2))
+(sub-aexpr (aexpr op-s e1-s e2-s) ?(aexpr op e (aexpr op-s e1-s e2-s)))
+(sub-aexpr (aexpr op-s e1-s e2-s) ?(aexpr op (aexpr op-s e1-s e2-s) e))
+[(sub-aexpr (aexpr op-s e1-s e2-s) ?(aexpr op e1 e2))
  <--
- (or (sub-aexpr e e1) (sub-aexpr e e2))]
-(sub-aexpr e ?(bexpr op e e2))
-(sub-aexpr e ?(bexpr op e1 e))
-[(sub-aexpr e ?(bexpr op e1 e2))
+ (or (sub-aexpr (aexpr op-s e1-s e2-s) e1)
+     (sub-aexpr (aexpr op-s e1-s e2-s) e2))]
+(sub-bexpr (aexpr op-s e1-s e2-s) ?(bexpr op e (aexpr op-s e1-s e2-s)))
+(sub-aexpr (aexpr op-s e1-s e2-s) ?(bexpr op (aexpr op-s e1-s e2-s) e))
+[(sub-aexpr (aexpr op-s e1-s e2-s) ?(bexpr op e1 e2))
  <--
- (or (sub-aexpr e e1) (sub-aexpr e e2))]
-(sub-aexpr e ?(assign id e e2))
-(sub-aexpr e ?(assign id e1 e))
-[(sub-aexpr e ?(assign id e1 e2))
+ (or (sub-aexpr (aexpr op-s e1-s e2-s) e1)
+     (sub-aexpr (aexpr op-s e1-s e2-s) e2))]
+(sub-aexpr (aexpr op-s e1-s e2-s) ?(assign id (aexpr op-s e1-s e2-s) e))
+(sub-aexpr (aexpr op-s e1-s e2-s) ?(assign id e (aexpr op-s e1-s e2-s)))
+[(sub-aexpr (aexpr op-s e1-s e2-s) ?(assign id e1 e2))
  <--
- (or (sub-aexpr e e1) (sub-aexpr e e2))]
-[(sub-aexpr e ?(seq e1 e2))
+ (or (sub-aexpr (aexpr op-s e1-s e2-s) e1)
+     (sub-aexpr (aexpr op-s e1-s e2-s) e2))]
+[(sub-aexpr (aexpr op-s e1-s e2-s) ?(seq e1 e2))
  <--
- (or (sub-aexpr e e1) (sub-aexpr e e2))]
-[(sub-aexpr e ?(if id eguard e1 e2)) <-- (sub-aexpr e eguard)]
-[(sub-aexpr e ?(if id eguard e1 e2))
+ (or (sub-aexpr (aexpr op-s e1-s e2-s) e1)
+     (sub-aexpr (aexpr op-s e1-s e2-s)  e2))]
+[(sub-aexpr (aexpr op-s e1-s e2-s) ?(if id eguard e1 e2))
  <--
- (or (sub-aexpr e e1) (sub-aexpr e e2))]
-[(sub-aexpr e ?(while id eguard ebody))
+ (or (sub-aexpr (aexpr op-s e1-s e2-s) e1)
+     (sub-aexpr (aexpr op-s e1-s e2-s) e2))
+     (sub-aexpr (aexpr op-s e1-s e2-s) eguard)]
+[(sub-aexpr (aexpr op-s e1-s e2-s) ?(while id eguard ebody))
  <--
- (or (sub-aexpr e eguard) (sub-aexpr e ebody))]
+ (or (sub-aexpr (aexpr op-s e1-s e2-s) eguard)
+     (sub-aexpr (aexpr op-s e1-s e2-s) ebody))]
 
 ;;
 ;; FV
-;; x is a free var in expression
+;; x is a free var appear in expression
 ;;
 (free-var x ?(var x))
 [(free-var x ?(aexpr op e1 e2))
@@ -201,21 +207,29 @@
 ;;
 ;; AE Entry relation
 ;; before enter block with label ...,  ... is a availiable expression
+;; ∩{AE-entry(l') | (l', l) ∈ flow(S*)}
 ;;
-[(ae-entry id "empty") <-- (prog-start id)]
-[(ae-entry id ae)
+[(ae-entry id "init") <-- (prog-start id)]
+;; data flow merged at point ..., flow from ..., ... is an availiable expression
+[(merged-flow id from ae)
  <--
  (flow-edge from id)
  (ae-exit from ae)]
+;; intersection on merged data flow
+[(excluded-ae id ae)
+ <--
+ (merged-flow id from1 ae)
+ (merged-flow id from2 ae)
+ (=/= from1 from2)]
 
 ;;
 ;; AE Exit relation
-;; when exit block with label ..., ... is a availiable expression
+;; when exit block with label ..., ... is an availiable expression
 ;;
 [(ae-exit id a)
  <--
  (ae-entry id a)
- (not-killed-ae id a)]
+ (not-kill-ae id a)]
 [(ae-exit id a)
  <--
  (gen-ae id a)]

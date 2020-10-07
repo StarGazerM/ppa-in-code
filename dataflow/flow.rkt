@@ -65,6 +65,27 @@
 (define (flowʳ stmt)
   (map reverse (flow stmt)))
 
+
+;; immediate predecessor of a statement
+;; this not in PPA, but used in Jeff Foster's slides
+;; preds :: 𝑷(Lab × Lab) -> Lab -> 𝑷(Lab)
+(define (preds graph l)
+  (for/fold ([res '()])
+            ([edge (in-list graph)])
+    (if (equal? (second edge) l)
+        (cons (first edge) res)
+        res)))
+
+;; immediate succssor of a statement
+;; this not in PPA, but used in Jeff Foster's slides
+;; succs ::  𝑷(Lab × Lab) -> Lab -> 𝑷(Lab)
+(define (succs graph l)
+  (for/fold ([res '()])
+            ([edge (in-list graph)])
+    (if (equal? (first edge) l)
+        (cons (second edge) res)
+        res)))
+
 ;; Example 2.1
 (define example2-1
   `((1 = z 1)
