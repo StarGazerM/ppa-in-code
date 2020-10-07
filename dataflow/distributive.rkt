@@ -38,10 +38,9 @@
          (if (empty? out-s-p-list)
              (fₛ s (set))
              (fₛ s (apply ⊓ out-s-p-list))))
-       ;; seems here ∪ is append?
        (if (not (equal? temp (hash-ref out s)))
            (update-worklist (hash-set out s temp)
-                            (append new-w (succs graph s)))
+                            (∪ new-w (succs graph s)))
            (update-worklist out new-w))]))
   (define inital-out
     (for/fold ([res (hash)])
