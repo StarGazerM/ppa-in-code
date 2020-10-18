@@ -11,7 +11,7 @@
 .decl Var(id: number, name: symbol)
 .input Var(IO=file, delimiter=",")
 
-.decl Num(id: number, val: number)
+.decl Num(id: number, val: symbol)
 .input Num(IO=file, delimiter=",")
 
 .decl Bool(id: number, val: symbol)

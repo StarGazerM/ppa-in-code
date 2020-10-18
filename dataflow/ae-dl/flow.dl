@@ -9,7 +9,7 @@
 .decl Init(sid: number, l: number)
 Init(id, id) :- Assign(id, _, _).
 Init(id, id) :- Skip(id).
-Init(sid, l) :- Seq(sid, s1, s2), Init(s1, l).
+Init(sid, l) :- Seq(sid, s1, _), Init(s1, l).
 Init(ifid, guard) :- If(ifid, guard, _, _).
 Init(whileid, guard) :- While(whileid, guard, _).
 
@@ -17,19 +17,30 @@ Init(whileid, guard) :- While(whileid, guard, _).
 .decl Final(sid: number, l: number)
 Final(id, id) :- Assign(id, _, _).
 Final(id, id) :- Skip(id).
-Final(sid, l) :- Seq(sid, s1, s2), Final(s2, l).
-Final(ifId, l) :- If(ifId, guardId, tureId, falseId), final(trueId, l).
-Final(ifId, l) :- If(ifId, guardId, tureId, falseId), final(falseId, l).
+Final(sid, l) :- Seq(sid, _, s2), s2!=-1, Final(s2, l).
+// end of seq
+Final(sid, l) :- Seq(sid, s1, s2), s2=-1, Final(s1, l).
+Final(ifId, l) :- If(ifId, _, trueId, _), Final(trueId, l).
+Final(ifId, l) :- If(ifId, _, _, falseId), Final(falseId, l).
 Final(whileId, guardId) :- While(whileId, guardId, _).
 
 // statement a flows to statement 2        
 .decl Flow(from: number, to: number)
 .output Flow
 Flow(from, to) :-
-   Seq(_, from, nextId),
+   Seq(_, s1, nextId),
    nextId!=-1,
-   Seq(nextId, to, _),
+   Seq(nextId, s2, _),
    Final(s1, from),
    Init(s2, to).
-
-
+Flow(from, to) :-
+   If(ifId, from, trueId, falseId),
+   (Init(trueId, to); Init(falseId, to)).
+Flow(from, to) :-
+   While(_, from, bodyId),
+   Init(bodyId, to).
+Flow(from, to) :-
+   While(_, to, bodyId),
+   Final(bodyId, from).
+   
+   
