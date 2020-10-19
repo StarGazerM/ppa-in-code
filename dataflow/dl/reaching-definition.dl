@@ -1,0 +1,33 @@
+// reaching definition analysis
+
+// Yihao Sun
+// 2020 Syracuse
+
+#include "flow.dl"
+
+// variable "x" reach block "l", at begining everying reach "?" (-1)
+.decl Reach(id: number, xId: number, l: number)
+.output Reach
+Reach($, xId, -1) :- Var(xId, _).
+
+// reach relation "rid" is killed at block "l"
+.decl KillRD(rid: number, l: number)
+KillRD(rid, l) :- Assign(l, x, _) , Reach(rid, x, -1).
+KillRD(rid ,l) :- Assign(l, x, _), Assign(lp, x, _), Reach(rid, x, lp).
+
+// reach relation $ is generated at block "l"
+.decl GenRD(rid: number, l: number)
+Reach($, x, l) :- Assign(l, x, _).
+GenRD(rid, l) :- Assign(l, x, _), Reach(rid, x, l).
+
+// reach relation "rid" hold before enter/exit block "l"
+.decl EntryRD(rid: number, l: number)
+.output EntryRD
+.decl ExitRD(rid: number, l: number)
+.output ExitRD
+
+EntryRD(rid, l) :- FirstStmt(l), Reach(rid, _, -1).
+EntryRD(rid, l) :- Flow(from, l), ExitRD(rid, from).
+
+ExitRD(rid, l) :- EntryRD(rid, l), !KillRD(rid, l).
+ExitRD(rid, l) :- GenRD(rid, l).

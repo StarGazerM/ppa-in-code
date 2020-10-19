@@ -45,8 +45,10 @@
 
 .decl While(id: number, eguardId: number, ebodyId: number)
 .input While(IO=file, delimiter=",")
+
 // top level Stmt*
-// .decl TopStmt(label: number)
+.decl FirstStmt(label: number)
+.input FirstStmt(IO=file, delimiter=",")
 
 //////////////////////////// rules ///////////////////////////////////////////
 
