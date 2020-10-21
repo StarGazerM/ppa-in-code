@@ -3,5 +3,36 @@
 // Yihao Sun
 // 2020 syracuse
 
+#include "live-variable.dl"
 
-             
+// variable "x" is used in block "l"
+.decl Use(x: symbol, l: number)
+Use(x, l) :- GenLV(x, l).
+
+.decl Def(x: symbol, l: number)
+Def(x, l) :- KillLV(x, l).
+
+// from "l" to "lp" is a definition clear path for variable "x"
+.decl DefClearPath(l: number, lp: number, x: symbol)
+DefClearPath(l, l, x) :-
+   Use(x, l).
+DefClearPath(from, to, x) :-
+   Flow(from, to),
+   !Def(x, from),
+   Use(x, to).
+DefClearPath(from, lp, x) :-
+   Flow(from, to),
+   !Def(x, from),
+   DefClearPath(to, lp, x).
+
+// variable "x" in block "lp" might obtain it's value in block "l"
+// if we don't know where it obtain, "lp" will be "?" (-1) 
+.decl UseDefChain(x: symbol, lp: number, l: number)
+.output UseDefChain
+UseDefChain(x, lp, l) :-
+   Def(x, l),
+   Flow(l, lpp),
+   DefClearPath(lpp, lp, x).
+UseDefChain(x, lp, -1) :-
+   FirstStmt(first),
+   DefClearPath(first, lp, x).
