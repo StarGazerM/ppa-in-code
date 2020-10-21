@@ -1,0 +1,32 @@
+// live variable analysis
+
+// Yihao Sun
+// 2020 Syracuse
+
+#include "flow.dl"
+
+// variable "x" is killed at block "l"
+.decl KillLV(x: symbol, l: number)
+KillLV(x, l) :- Assign(l, vid, _), Var(vid, x).
+
+// varibale "x" is become alive at block "l"
+.decl GenLV(x: symbol, l: number)
+GenLV(x, l) :- Assign(l, _, a), FreeIn(x, a).
+GenLV(x, l) :- BExprStruct(l, _, _, _), FreeIn(x, l).
+GenLV(x, l) :- RExprStruct(l, _, _, _), FreeIn(x, l).
+
+// variable "x" is alive when entry/exit block "l"
+.decl EntryLV(x: symbol, l: number)
+.output EntryLV
+.decl ExitLV(x: symbol, l: number)
+.output ExitLV
+
+ExitLV(x, l) :-
+   LastStmt(fl), l!=fl,
+   FlowReverse(lp, l),
+   EntryLV(x, lp).
+
+EntryLV(x, l) :- GenLV(x, l).
+EntryLV(x, l) :-
+   ExitLV(x, l),
+   !KillLV(x, l).

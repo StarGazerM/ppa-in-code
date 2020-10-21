@@ -43,4 +43,6 @@ Flow(from, to) :-
    While(_, to, bodyId),
    Final(bodyId, from).
    
-   
+.decl FlowReverse(from: number, to: number)
+.output FlowReverse
+FlowReverse(from, to) :- Flow(to, from).
