@@ -37,6 +37,23 @@
     [`(,(? op-r?) ,(? aexpr?) ...) #t]
     [else #f]))
 
+;; proc
+;; function definition
+(define (call? c)
+  [`(,lc ,lr call ,p (,as ...)) #t]
+  [else #f])
+(define (definition? d)
+  (match d
+    [`(,lx proc ,p (val (,xs ...) res ,y) ,ln is ,s end)
+     #t]
+    [else #f]))
+;; program
+(define (program p)
+  (match p
+    [`(begin (,d* ...) (,s* ...) end) #t]
+    [else #f]))
+
+
 ;; get sub expression inside a aexpr
 ;; note: var and number will not count
 (define (aexpr-a a)
@@ -68,7 +85,21 @@
                 (aexpr* s1)
                 (aexpr* s2))]
     [`(while (,label ,(? bexpr? b)) do ,(? stmt? s))
-     (set-union (aexpr-b b) (aexpr* s))]))
+     (set-union (aexpr-b b) (aexpr* s))]
+    ;; extend with procedure
+    [`(begin (,d* ...) (,s* ...) end)
+     (define ae-d*
+       (foldl (λ (d res) (set-union (aexpr* d) res)) '() d*))
+     (define ae-s*
+       (foldl (λ (s res) (set-union (aexpr* s) res)) '() s*))
+     (set-union ae-d* ae-s*)]
+    ;; ln is entry to procedure body, and lx is exit
+    [`(,lx proc ,p (val (,x ...) res ,y) ,ln is ,s end)
+     (aexpr* s)]
+    ;; lc used for call of procedure, lr used for associated return
+    [`(,lc ,lr call ,p (,as ...))
+     (foldl (λ (a res) (set-union (aexpr* a) res)) '() as)]
+    ))
 
 ;; check if a variable is a free var inside a Arithmetic Expression
 ;; isFreeVar : Var → AExpr → Bool
@@ -102,6 +133,14 @@
     [`(while (,label ,(? bexpr? b)) do ,(? stmt? s))
      (or (free-var? v b)
          (free-var? v s))]
+    ;; proc
+    [`(begin (,d* ...) (,s* ...) end)
+     (or (ormap (λ (d) (free-var? v d)) d*)
+         (ormap (λ (s) (free-var? v s)) s*))]
+    [`(,lx proc ,p (val (,xs ...) res ,y) ,ln is ,s end)
+     (free-var? v s)]
+    [`(,lc ,lr call ,p (,as ...))
+     (ormap (λ (a) (free-var? v a)) as)]
     [else #f]))
 
 ;; get all free var inside a statement
@@ -127,6 +166,15 @@
     [`(while (,label ,(? bexpr? b)) do ,(? stmt? s))
      (set-union (free-vars b)
                 (free-vars s))]
+    ;; proc
+    [`(begin (,d* ...) (,s* ...) end)
+     (define fv-d* (foldl (λ (d res) (set-union res (free-vars d))) '() d*))
+     (define fv-s* (foldl (λ (s res) (set-union res (free-vars s))) '() s*))
+     (set-union fv-d* fv-s*)]
+    [`(,lx proc ,p (val (,xs ...) res ,y) ,ln is ,s end)
+     (free-vars s)]
+    [`(,lc ,lr call ,p (,as ...))
+     (foldl (λ (a res) (set-union res (free-vars a))) '() as)]
     [else '()]))
 
 ;; statement
@@ -140,6 +188,8 @@
     [`(,(? stmt? ss) ...) #t]
     [`(if (,label ,(? bexpr? b)) ,(? stmt? s1) ,(? stmt? s2)) #t]
     [`(while (,label ,(? bexpr? b)) do ,(? stmt? s)) #t]
+    ;; proc
+    [`(,lc ,lr call ,p (,as ...)) #t]
     [else #f]))
 
 ;; all labels inside a statement
@@ -151,7 +201,16 @@
     [`(if (,label ,(? bexpr? b)) ,(? stmt? s1) ,(? stmt? s2))
      (cons label (append (labels s1) (labels s2)))]
     [`(while (,label ,(? bexpr? b)) do ,(? stmt? s))
-     (cons label (labels s))]))
+     (cons label (labels s))]
+    ;; proc
+    [`(begin (,d* ...) (,s* ...) end)
+     (set-union (foldl (λ (d res) (set-union (labels d) res)) '() d*)
+                (labels s*))]
+    [`(,lc ,lr call ,p (,as ...))
+     `(,lc ,lr)]
+    [`(,lx proc ,p (val (,xs ...) res ,y) is ,ln ,s end)
+     (set-union `(,ln ,lx)
+                (labels s))]))
 
 
 ;; blocks is set of statement or elementary blocks, of the form
@@ -161,6 +220,9 @@
     [`(,label = ,(? variable? x) ,(? aexpr? a)) #t]
     [`(,label ,(? bexpr? b)) #t] 
     [`(,label SKIP) #t]
+    [`(,lc ,lr call ,p (,as ...)) #t]
+    ;; function itself also a block
+    [`(,ln ,lx is end) #t]
     [else #f]))
 
 ;; blocks : Stmt → P(Blocks)
@@ -176,7 +238,17 @@
                 (blocks s2))]
     [`(while ,eguard do ,(? stmt? s))
      (set-union (list eguard)
-                (blocks s))]))
+                (blocks s))]
+    [`(begin (,d* ...) (,s* ...) end)
+     (define blocks-d*
+       (foldl (λ (d res) (set-union res (blocks d))) '()  d*))
+     (define blocks-s*
+       (blocks s*))
+     (set-union blocks-s* blocks-d*)]
+    [`(,lx proc ,p (val (,xs ...) res ,y) ,ln is ,s end)
+     (set-add (blocks s) `(,ln ,lx is end))]
+    [`(,lc ,lr call ,p (,as ...))
+     (list st)]))
 
 ;; find statement by label inside a top-level state ment
 (define (find-block-by-label s* l)
@@ -193,4 +265,37 @@
     [`(while (,label ,(? bexpr? b)) do ,(? stmt? s))
      (if (equal? label l)
          `(,label ,b)
-         (find-block-by-label s l))]))
+         (find-block-by-label s l))]
+    [`(begin (,d* ...) (,ss ...) end)
+     (or (find-block-by-label ss l)
+         (foldl (λ (d res)
+                    (or (find-block-by-label d) res))
+                  #f
+                  d*))]
+    [`(,lx proc ,p (val (,xs ...) res ,y) ,ln is ,s end)
+     (or (if (equal? `(,ln ,lx) l) `(,ln ,lx is end) #f)
+         (find-block-by-label s l))]
+    [`(,lc ,lr call ,p (,as ...))
+     (if (equal? l `(,lc ,lr))
+         s*
+         #f)]))
+
+
+(define (find-definition-by-label d* l)
+  (match d*
+    [`(,lx proc ,p (val (,xs ...) res ,y) ,ln is ,s end)
+     (if (equal? lx l)
+         d*
+         #f)]
+    [`(,(? definition? ds) ...)
+     (foldl (λ (d res) (or (find-definition-by-label d) res)) #f ds)]))
+
+(define (find-definition-by-name d* name)
+  (match d*
+    [`(,lx proc ,p (val (,xs ...) res ,y) ,ln is ,s end)
+     (if (equal? p name) d* #f)]
+    [`(,(? definition? ds) ...)
+     (foldl (λ (d res) (or (find-definition-by-name d) res)) #f ds)]))
+
+;; find all call
+(define (call* prog) (filter call? (blocks prog)))

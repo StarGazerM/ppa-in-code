@@ -1,7 +1,8 @@
-;; data flow graph in intra procedure analysis
+;; data flow graph
 
+;; Yihao Sun
+;; 2020 Syracuse
 #lang racket
-
 
 (require "tiny-lang.rkt")
 
@@ -16,10 +17,13 @@
     [`(,label = ,(? variable? x) ,(? aexpr? a)) label]
     [`(,label SKIP) label]
     [`(,(? stmt? stmts) ...) (init-flow (car stmts))]
-    [`(if (,label ,(? bexpr? b)) ,(? stmt? s1) ,(? stmt? s2))
-     label]
-    [`(while (,label ,(? bexpr? b)) do ,(? stmt? s))
-     label]))
+    [`(if (,label ,(? bexpr? b)) ,(? stmt? s1) ,(? stmt? s2)) label]
+    [`(while (,label ,(? bexpr? b)) do ,(? stmt? s)) label]
+    ;; procedure
+    [`(,lc ,lr call ,p (,as ...)) lc]
+    [`(,lx proc ,p (val (,xs ...) res ,y) ,ln is ,s end) ln]
+    [`(begin (,d* ...) (,s* ...) end)
+     (init-flow s*)]))
 
 ;; the end of a flow
 ;; final: Stmt → 𝑷(Lab)
@@ -33,32 +37,66 @@
     [`(if (,label ,(? bexpr? b)) ,(? stmt? s1) ,(? stmt? s2))
      (set-union (final-flow s1) (final-flow s2))]
     [`(while (,label ,(? bexpr? b)) do ,(? stmt? s))
-     (list s)]))
+     (list s)]
+    ;; procedure
+    [`(,lc ,lr call ,p (,as ...))
+     (list lr)]
+    [`(,lx proc ,p (val (,xs ...) res ,y) ,ln is ,s end)
+     (list lx)]
+    [`(begin (,d* ...) (,s* ...) end)
+     (final-flow s*)]))
 
 ;; flow and reverse flow
-;; flow : Stmt -> 𝑷(Lab × Lab)
-(define (flow stmt)
+;; flow : Stmt -> [ProcDefinition] -> 𝑷(Lab × Lab)
+(define (flow stmt [d* '()])
   (match stmt
     [`(,label = ,(? variable? x) ,(? aexpr? a)) '()]
     [`(,label SKIP) '()]
     ['() '()]
-    [`(,(? stmt? s)) (flow s)]
+    [`(,(? stmt? s)) (flow s d*)]
     [`(,(? stmt? s) ...)
      (define s1 (car s))
      (define s2 (cdr s))
-     (set-union (flow s1)
-                (flow s2)
+     (set-union (flow s1 d*)
+                (flow s2 d*)
                 (remove-duplicates
                  (map (λ (l) `(,l ,(init-flow s2))) (final-flow s1))))]
     [`(if (,label ,(? bexpr? b)) ,(? stmt? s1) ,(? stmt? s2))
-     (set-union (flow s1)
-                (flow s2)
-                `((,label ,(init-flow s1))
-                  (,label ,(init-flow s2))))]
+     (set-union (flow s1 d*)
+                (flow s2 d*)
+                `((,label ,(init-flow s1 d*))
+                  (,label ,(init-flow s2 d*))))]
     [`(while (,label ,(? bexpr? b)) do ,(? stmt? s))
-     (set-union (flow s)
+     (set-union (flow s d*)
                 `((,label ,(init-flow s)))
-                (map (λ (l) `(,l ,label)) (final-flow s)))]))
+                (map (λ (l) `(,l ,label)) (final-flow s)))]
+    ;; procedure
+    ;; (lc ln) is flow of calling p at lc and with ln being the entry point for procedure body
+    ;; (lx lr) is flow of exiting p body at lx and returning to call at lr
+    [`(,lc ,lr call ,p (,as ...))
+     (match (find-definition-by-name p d*)
+       [`(,lx proc ,p (val (,xs ...) res ,y) ,ln is ,s end)
+        `((,lc ,ln) (,lx ,lr))])]
+    [`(,lx proc ,p (val (,xs ...) res ,y) is ,ln ,s end)
+     (set-union (list `(,ln ,(init-flow s)))
+                (map (λ (l) `(,l ,lx)) (final-flow s)))]
+    [`(begin (,d* ...) (,s* ...) end)
+     (set-union (foldl (λ (d res) (set-union (flow d d*) res)) '() d*)
+                (flow s* d*))]))
+
+;; interprocedure flow
+(define (inter-flow p)
+  (foldl (λ (c res)
+           (set-union
+            res
+            (match c
+              [`(,lc ,lr call ,p (,as ...))
+               (match (find-definition-by-name p)
+                 [`(,lx proc ,p (val (,xs ...) res ,y) is ,ln ,s end)
+                  (list `(,lc ,ln ,lx ,lr))]
+                 [else '()])])))
+         '()
+         (call* p)))
 
 ;; reverse flow
 ;; this is easy
@@ -96,3 +134,13 @@
 
 ;; flow.rkt> (flow example2-1)
 ;; '((1 2) (3 4) (2 3) (4 2))
+
+(define example2-33
+  '(begin ((8 proc fib (val (z u) res v) 1 is
+             (if (2 (< z 3)) then
+                 (3 = v (+ u 1))
+                 ((4 5 call fib ((- z 1) u v))
+                  (6 7 call fib ((- z 2) v v))))
+             end))
+          ((9 10 call fib (x 0 y)))
+          end))
