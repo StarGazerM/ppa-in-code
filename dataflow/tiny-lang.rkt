@@ -40,8 +40,9 @@
 ;; proc
 ;; function definition
 (define (call? c)
-  [`(,lc ,lr call ,p (,as ...)) #t]
-  [else #f])
+  (match c
+    [`(,lc ,lr call ,p (,as ...)) #t]
+    [else #f]))
 (define (definition? d)
   (match d
     [`(,lx proc ,p (val (,xs ...) res ,y) ,ln is ,s end)
@@ -295,7 +296,7 @@
     [`(,lx proc ,p (val (,xs ...) res ,y) ,ln is ,s end)
      (if (equal? p name) d* #f)]
     [`(,(? definition? ds) ...)
-     (foldl (λ (d res) (or (find-definition-by-name d) res)) #f ds)]))
+     (foldl (λ (d res) (or (find-definition-by-name d name) res)) #f ds)]))
 
 ;; find all call
 (define (call* prog) (filter call? (blocks prog)))
