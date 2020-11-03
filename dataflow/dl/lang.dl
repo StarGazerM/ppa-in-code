@@ -46,6 +46,7 @@
 .decl While(id: number, eguardId: number, ebodyId: number)
 .input While(IO=file, delimiter=",")
 
+// just in intra-procedure
 // first level Stmt*
 .decl FirstStmt(label: number)
 .input FirstStmt(IO=file, delimiter=",")
@@ -53,6 +54,40 @@
 // top level stmt
 .decl LastStmt(label: number)
 .input LastStmt(IO=file, delimiter=",")
+
+////////////////////// extend with procedure //////////////////////
+.decl Program(id: number, defs: number, stmt: number)
+.input Program(IO=file, delimiter=",")
+
+// similar to Seq if rest is -1 means last
+// arg are variable
+.decl ArgList(id: number, arg: number, rest: number)
+.input ArgList(IO=file, delimiter=",")
+
+// similar to Seq if rest is -1 means last
+.decl ProcList(id: number, proc: number, rest: number)
+.input ProcList(IO=file, delimiter=",")
+
+// I directly use ln,lx for index 
+.decl ProcDecl(ln: number, pname: symbol, args: number, res: number, body: number)
+.input ProcDecl(IO=file, delimiter=",")
+
+.decl ProcBody(lx: number, stmt: number)
+.input ProcBody(IO=file, delimiter=",")
+
+// here is how flatten sucks, but maybe will be similar to parser rule
+// for convience I inline this rule
+// .decl Param(id: number, expr: number)
+// .input Param(IO=file, delimiter=",")
+
+.decl ParamList(id: number, param: number, rest: number)
+.input ParamList(IO=file, delimiter=",")
+
+// arg are value, maybe here is some type like thing can be interesting
+.decl Call(id: number, lc: number, lr: number, pname: symbol, parms: number, res: number)
+.input Call(IO=file, delimiter=",")
+ 
+
 
 //////////////////////////// rules ///////////////////////////////////////////
 
@@ -70,9 +105,10 @@
 .decl FreeIn(x: symbol, eid: number)
 // .output FreeIn
 FreeIn(x, eid) :- Var(eid, x).
-FreeIn(x, eid) :- AExprStruct(eid, op, left, right), (FreeIn(x, left) ; FreeIn(x, right)).
-FreeIn(x, eid) :- BExprStruct(eid, op, left, right), (FreeIn(x, left) ; FreeIn(x, right)).
-FreeIn(x, eid) :- RExprStruct(eid, op, left, right), (FreeIn(x, left) ; FreeIn(x, right)).
+FreeIn(x, eid) :- AExprStruct(eid, _, left, _), FreeIn(x, left).
+FreeIn(x, eid) :- AExprStruct(eid, _, _, right), FreeIn(x, right).
+FreeIn(x, eid) :- BExprStruct(eid, _, left, right), (FreeIn(x, left) ; FreeIn(x, right)).
+FreeIn(x, eid) :- RExprStruct(eid, _, left, right), (FreeIn(x, left) ; FreeIn(x, right)).
 FreeIn(x, eid) :- Assign(eid, _, aexprId), FreeIn(x, aexprId).
 FreeIn(x, eid) :- Assign(eid, vid, _), Var(vid, x).
 FreeIn(x, eid) :- Seq(eid, prev, _), FreeIn(x, prev).
@@ -80,7 +116,9 @@ FreeIn(x, eid) :- Seq(eid, _, next), next!=-1, FreeIn(x, next).
 FreeIn(x, eid) :- If(eid, eguard, etrue, eflase), 
                   (FreeIn(x, eguard) ; FreeIn(x, etrue) ; FreeIn(x, efalse)).
 FreeIn(x, eid) :- While(eid, eguard, ebody), (FreeIn(x, eguard) ; FreeIn(x, ebody)).
-
+FreeIn(x, eid) :- ProcBody(eid, stmt), FreeIn(x, stmt).
+FreeIn(x, eid) :- Call(eid, _, _, _, params, res), (FreeIn(x, res) ; FreeIn(x, params)).
+FreeIn(x, eid) :- ParamList(eid, param, rest), (FreeIn(x, param) ; FreeIn(x, rest)).
 
 // // all blocks in program
 // .decl Label(id: number)
